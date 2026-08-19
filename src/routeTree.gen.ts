@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as SummaryRouteImport } from './routes/summary'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const HistoryRoute = HistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SummaryRoute = SummaryRouteImport.update({
+  id: '/summary',
+  path: '/summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
+  '/summary': typeof SummaryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
+  '/summary': typeof SummaryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
+  '/summary': typeof SummaryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/history'
+  fullPaths: '/' | '/history' | '/summary'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/history'
-  id: '__root__' | '/' | '/history'
+  to: '/' | '/history' | '/summary'
+  id: '__root__' | '/' | '/history' | '/summary'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HistoryRoute: typeof HistoryRoute
+  SummaryRoute: typeof SummaryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/summary': {
+      id: '/summary'
+      path: '/summary'
+      fullPath: '/summary'
+      preLoaderRoute: typeof SummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HistoryRoute: HistoryRoute,
+  SummaryRoute: SummaryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

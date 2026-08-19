@@ -61,7 +61,7 @@ export function toISODate(d: Date) {
 
 export function parseISODate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
 }
 
 /** e.g. 19 Aug 2026 */

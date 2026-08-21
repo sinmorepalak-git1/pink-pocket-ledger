@@ -13,6 +13,7 @@ export type PaymentMethod = "Cash" | "UPI" | "Debit Card" | "Credit Card" | "Oth
 
 export interface Expense {
   id: string;
+  userId: string;
   amount: number;
   /** ISO date string: yyyy-MM-dd */
   date: string;
@@ -151,31 +152,11 @@ export function categoryTotals(expenses: Expense[]) {
 }
 
 /* --------------------------------- storage -------------------------------
- * Single storage adapter — swap this out for Lovable Cloud / Supabase later
- * without touching UI code.
+ * Handled via Firestore in useExpenses
  * ------------------------------------------------------------------------ */
 
-const STORAGE_KEY = "expense-tracker:expenses:v1";
-
-export function loadExpenses(): Expense[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Expense[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveExpenses(expenses: Expense[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-}
-
 export function createId() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `EXP-${timestamp}-${random}`;
 }

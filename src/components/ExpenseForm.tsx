@@ -42,6 +42,7 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
   const [category, setCategory] = useState<Category>("Food");
   const [description, setDescription] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("UPI");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -52,8 +53,10 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
     setPaymentMethod(expense?.paymentMethod ?? "UPI");
   }, [open, expense]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSaving) return;
+    
     const value = Number(amount);
     if (!value || value <= 0) {
       toast.error("Please enter a valid amount");
@@ -66,14 +69,23 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
       description: description.trim() || category,
       paymentMethod,
     };
-    if (expense) {
-      updateExpense(expense.id, payload);
-      toast.success("Expense updated");
-    } else {
-      addExpense(payload);
-      toast.success("Expense saved");
+    
+    setIsSaving(true);
+    try {
+      if (expense) {
+        await updateExpense(expense.id, payload);
+        toast.success("Expense updated successfully.");
+      } else {
+        await addExpense(payload);
+        toast.success("Expense saved successfully.");
+      }
+      onOpenChange(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Failed to save expense.");
+    } finally {
+      setIsSaving(false);
     }
-    onOpenChange(false);
   }
 
   return (
@@ -158,8 +170,14 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
           </div>
 
           <DialogFooter>
-            <Button type="submit" size="lg" className="h-14 w-full text-base">
-              {expense ? "Update Expense" : "Save Expense"}
+            <Button type="submit" size="lg" className="h-14 w-full text-base" disabled={isSaving}>
+              {isSaving
+                ? expense
+                  ? "Updating..."
+                  : "Saving..."
+                : expense
+                  ? "Update Expense"
+                  : "Save Expense"}
             </Button>
           </DialogFooter>
         </form>

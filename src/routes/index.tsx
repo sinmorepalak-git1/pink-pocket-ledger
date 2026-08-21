@@ -1,12 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMemo, useState, useEffect } from "react";
+import { Plus, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { EmptyState, ExpenseList } from "@/components/ExpenseList";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useAuth } from "@/hooks/useAuth";
 import {
   categoryTotals,
   endOfWeek,
@@ -49,7 +50,16 @@ function SummaryCard({ label, value, note }: { label: string; value: string; not
 }
 
 function Index() {
-  const { expenses } = useExpenses();
+  const { currentUser, loading: authLoading, logout } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      navigate({ to: "/login" });
+    }
+  }, [currentUser, authLoading, navigate]);
+
+  const { expenses, isLoading } = useExpenses();
   const [adding, setAdding] = useState(false);
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(toISODate(today));
@@ -84,8 +94,28 @@ function Index() {
 
   const recent = expenses.slice(0, 30);
 
+  if (authLoading || isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return null; // Will redirect in useEffect
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-2">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+        <Button variant="ghost" size="sm" onClick={() => logout()} className="text-muted-foreground hover:text-foreground">
+          <LogOut className="mr-2 size-4" />
+          Logout
+        </Button>
+      </div>
+
       <section className="grid grid-cols-3 gap-3">
         <SummaryCard label="Today" value={formatINR(totals.day)} note="Total spent today" />
         <SummaryCard label="This Week" value={formatINR(totals.week)} note="Total spent this week" />

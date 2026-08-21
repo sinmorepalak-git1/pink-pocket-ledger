@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMemo, useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
 import { EmptyState, ExpenseList } from "@/components/ExpenseList";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useAuth } from "@/hooks/useAuth";
 import {
   CATEGORIES,
   PAYMENT_METHODS,
@@ -46,6 +47,15 @@ export const Route = createFileRoute("/history")({
 type RangeMode = "all" | "day" | "week" | "month";
 
 function History() {
+  const { currentUser, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      navigate({ to: "/login" });
+    }
+  }, [currentUser, authLoading, navigate]);
+
   const { expenses } = useExpenses();
   const [adding, setAdding] = useState(false);
   const today = toISODate(new Date());
@@ -91,6 +101,18 @@ function History() {
     );
     return list;
   }, [expenses, mode, day, week, month, category, payment, search, sort]);
+
+  if (authLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <div className="space-y-5">

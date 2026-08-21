@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useAuth } from "@/hooks/useAuth";
 import { categoryIcon, categoryTotals, formatINR, sum, toISODate } from "@/lib/expenses";
 
 export const Route = createFileRoute("/summary")({
@@ -24,6 +25,15 @@ export const Route = createFileRoute("/summary")({
 });
 
 function Summary() {
+  const { currentUser, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      navigate({ to: "/login" });
+    }
+  }, [currentUser, authLoading, navigate]);
+
   const { expenses } = useExpenses();
   const [month, setMonth] = useState(toISODate(new Date()).slice(0, 7));
 
@@ -37,6 +47,18 @@ function Summary() {
   const daysInMonth = new Date(y ?? 2026, m ?? 1, 0).getDate();
   const avgDaily = total / daysInMonth;
   const cats = categoryTotals(monthExpenses);
+
+  if (authLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center text-muted-foreground">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <div className="space-y-5">

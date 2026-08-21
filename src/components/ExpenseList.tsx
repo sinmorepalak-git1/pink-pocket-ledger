@@ -50,6 +50,22 @@ function ExpenseRow({ expense }: { expense: Expense }) {
   const { deleteExpense } = useExpenses();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await deleteExpense(expense.id);
+      toast.success("Expense deleted successfully.");
+      setConfirming(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete expense.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   return (
     <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-0">
@@ -95,14 +111,15 @@ function ExpenseRow({ expense }: { expense: Expense }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                deleteExpense(expense.id);
-                toast.success("Expense deleted");
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
               }}
             >
-              Delete
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

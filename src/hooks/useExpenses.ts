@@ -5,8 +5,7 @@ import { db } from "@/lib/firebase";
 import {
   collection,
   query,
-  where,
-  getDocs,
+  onSnapshot,
   doc,
   setDoc,
   deleteDoc,
@@ -19,51 +18,54 @@ export type ExpenseInput = Omit<Expense, "id" | "createdAt" | "userId">;
 
 export function useExpenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { currentUser } = useAuth();
 
-  const fetchExpenses = useCallback(async () => {
+  useEffect(() => {
     if (!currentUser) {
       setExpenses([]);
+      setIsLoading(false);
       return;
     }
 
-    try {
-      setIsLoading(true);
-      const q = query(
-        collection(db, "users", currentUser.uid, "expenses")
-      );
-      const querySnapshot = await getDocs(q);
-      const loaded: Expense[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        loaded.push({
-          id: doc.id,
-          userId: data.userId,
-          amount: data.amount,
-          date: data.date,
-          category: data.category,
-          description: data.description,
-          paymentMethod: data.paymentMethod,
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+    setIsLoading(true);
+    const q = query(
+      collection(db, "users", currentUser.uid, "expenses")
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const loaded: Expense[] = [];
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          loaded.push({
+            id: docSnap.id,
+            userId: data.userId,
+            amount: data.amount,
+            date: data.date,
+            category: data.category,
+            description: data.description,
+            paymentMethod: data.paymentMethod,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          });
         });
-      });
 
-      // Sort by createdAt descending
-      loaded.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+        // Sort by createdAt descending
+        loaded.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
-      setExpenses(loaded);
-    } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || "Failed to load expenses.");
-    } finally {
-      setIsLoading(false);
-    }
+        setExpenses(loaded);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error("Firestore snapshot error:", error);
+        toast.error("Failed to sync expenses in real-time.");
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, [currentUser]);
-
-  useEffect(() => {
-    fetchExpenses();
-  }, [fetchExpenses]);
 
   const addExpense = useCallback(
     async (input: ExpenseInput) => {
@@ -77,10 +79,8 @@ export function useExpenses() {
         userId: currentUser.uid,
         createdAt: serverTimestamp(),
       });
-
-      await fetchExpenses();
     },
-    [currentUser, fetchExpenses]
+    [currentUser]
   );
 
   const updateExpense = useCallback(
@@ -93,9 +93,8 @@ export function useExpenses() {
       await updateDoc(expenseRef, {
         ...input,
       });
-      await fetchExpenses();
     },
-    [currentUser, fetchExpenses]
+    [currentUser]
   );
 
   const deleteExpense = useCallback(
@@ -106,9 +105,8 @@ export function useExpenses() {
       
       const expenseRef = doc(db, "users", currentUser.uid, "expenses", id);
       await deleteDoc(expenseRef);
-      await fetchExpenses();
     },
-    [currentUser, fetchExpenses]
+    [currentUser]
   );
 
   return { expenses, isLoading, addExpense, updateExpense, deleteExpense };

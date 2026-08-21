@@ -17,6 +17,7 @@ export type TransactionInput = Omit<Transaction, "id" | "createdAt" | "userId">;
 export function useExpenses() {
   const [expenses, setExpenses] = useState<Transaction[]>([]);
   const [wallet, setWallet] = useState<Wallet>({ cashBalance: 0, onlineBalance: 0 });
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { currentUser } = useAuth();
 
@@ -39,8 +40,10 @@ export function useExpenses() {
           cashBalance: data.cashBalance || 0,
           onlineBalance: data.onlineBalance || 0,
         });
+        setCustomCategories(data.customCategories || []);
       } else {
         setWallet({ cashBalance: 0, onlineBalance: 0 });
+        setCustomCategories([]);
       }
     });
 
@@ -59,6 +62,7 @@ export function useExpenses() {
             amount: data.amount,
             date: data.date,
             category: data.category,
+            customCategory: data.customCategory || null,
             description: data.description,
             account: data.account,
             createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
@@ -205,7 +209,6 @@ export function useExpenses() {
     [currentUser]
   );
 
-  // setInitialBalances for the very first time setting wallet
   const setInitialBalances = useCallback(
     async (cash: number, online: number) => {
       if (!currentUser) throw new Error("You must be logged in.");
@@ -217,5 +220,36 @@ export function useExpenses() {
     [currentUser]
   );
 
-  return { expenses, wallet, isLoading, addExpense, updateExpense, deleteExpense, setInitialBalances };
+  const addCustomCategory = useCallback(
+    async (category: string) => {
+      if (!currentUser) throw new Error("You must be logged in to add a category.");
+      if (!category || !category.trim()) return;
+      const userRef = doc(db, "users", currentUser.uid);
+
+      await runTransaction(db, async (transaction) => {
+        const userDoc = await transaction.get(userRef);
+        const existingCats = userDoc.data()?.customCategories || [];
+        if (!existingCats.includes(category.trim())) {
+          transaction.set(
+            userRef,
+            { customCategories: [...existingCats, category.trim()] },
+            { merge: true }
+          );
+        }
+      });
+    },
+    [currentUser]
+  );
+
+  return { 
+    expenses, 
+    wallet, 
+    customCategories, 
+    isLoading, 
+    addExpense, 
+    updateExpense, 
+    deleteExpense, 
+    setInitialBalances, 
+    addCustomCategory 
+  };
 }

@@ -1,14 +1,15 @@
 export type Category =
   | "Food"
-  | "Travel"
   | "Shopping"
+  | "Travel"
   | "Bills"
   | "Entertainment"
-  | "Health"
   | "Education"
-  | "Groceries"
-  | "Other"
-  | "Income";
+  | "Health"
+  | "Rent"
+  | "Other Expense"
+  | "Income"
+  | string;
 
 export type AccountType = "cash" | "online";
 export type PaymentMethod = "Cash" | "Online / UPI";
@@ -25,7 +26,8 @@ export interface Transaction {
   amount: number;
   /** ISO date string: yyyy-MM-dd */
   date: string;
-  category: Category | string;
+  category: Category;
+  customCategory?: string | null;
   description: string;
   account: AccountType;
   createdAt: string;
@@ -34,22 +36,22 @@ export interface Transaction {
 // Alias for backwards compatibility in components during refactoring
 export type Expense = Transaction;
 
-export const CATEGORIES: { name: Category | string; icon: string }[] = [
+export const CATEGORIES: { name: Category; icon: string }[] = [
   { name: "Food", icon: "🍔" },
-  { name: "Travel", icon: "🚕" },
   { name: "Shopping", icon: "🛍️" },
+  { name: "Travel", icon: "🚕" },
   { name: "Bills", icon: "🧾" },
   { name: "Entertainment", icon: "🎬" },
-  { name: "Health", icon: "💊" },
   { name: "Education", icon: "📚" },
-  { name: "Groceries", icon: "🛒" },
-  { name: "Other", icon: "✨" },
+  { name: "Health", icon: "💊" },
+  { name: "Rent", icon: "🏠" },
+  { name: "Other Expense", icon: "✨" },
   { name: "Income", icon: "💰" },
 ];
 
 export const PAYMENT_METHODS: PaymentMethod[] = ["Cash", "Online / UPI"];
 
-export function categoryIcon(category: Category | string) {
+export function categoryIcon(category: Category) {
   return CATEGORIES.find((c) => c.name === category)?.icon ?? "✨";
 }
 
@@ -173,6 +175,90 @@ export function categoryTotals(transactions: Transaction[]) {
   return [...map.entries()]
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);
+}
+
+export type DateRangeType =
+  | "Today"
+  | "This Week"
+  | "This Month"
+  | "Last Month"
+  | "This Year"
+  | "Custom Date Range";
+
+export function filterByDateRange(
+  transactions: Transaction[],
+  rangeType: DateRangeType,
+  customStart?: string,
+  customEnd?: string
+) {
+  const today = new Date();
+  const todayISO = toISODate(today);
+
+  return transactions.filter((e) => {
+    switch (rangeType) {
+      case "Today":
+        return e.date === todayISO;
+      case "This Week": {
+        const ws = startOfWeek(today);
+        const we = endOfWeek(today);
+        return isInRange(e.date, ws, we);
+      }
+      case "This Month":
+        return e.date.slice(0, 7) === todayISO.slice(0, 7);
+      case "Last Month": {
+        let y = today.getFullYear();
+        let m = today.getMonth(); // 0-indexed, so 0 is Jan
+        if (m === 0) {
+          y -= 1;
+          m = 12;
+        }
+        const lastMonthStr = `${y}-${String(m).padStart(2, "0")}`;
+        return e.date.slice(0, 7) === lastMonthStr;
+      }
+      case "This Year":
+        return e.date.startsWith(String(today.getFullYear()));
+      case "Custom Date Range":
+        if (customStart && customEnd) {
+          const t = parseISODate(e.date).getTime();
+          const startT = parseISODate(customStart).getTime();
+          const endT = parseISODate(customEnd).getTime();
+          return t >= startT && t <= endT;
+        }
+        return true;
+      default:
+        return true;
+    }
+  });
+}
+
+export function getHighestSpendingCategory(transactions: Transaction[]) {
+  const expenses = transactions.filter((t) => t.type === "expense");
+  if (expenses.length === 0) return null;
+  const totals = categoryTotals(expenses);
+  return totals.length > 0 ? totals[0] : null;
+}
+
+export function getHighestSpendingDay(transactions: Transaction[]) {
+  const expenses = transactions.filter((t) => t.type === "expense");
+  if (expenses.length === 0) return null;
+  
+  const map = new Map<string, number>();
+  for (const e of expenses) {
+    map.set(e.date, (map.get(e.date) ?? 0) + e.amount);
+  }
+  
+  const sorted = [...map.entries()]
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => b.total - a.total);
+    
+  return sorted.length > 0 ? sorted[0] : null;
+}
+
+export function getHighestSingleExpense(transactions: Transaction[]) {
+  const expenses = transactions.filter((t) => t.type === "expense");
+  if (expenses.length === 0) return null;
+  
+  return [...expenses].sort((a, b) => b.amount - a.amount)[0] || null;
 }
 
 /* --------------------------------- storage -------------------------------

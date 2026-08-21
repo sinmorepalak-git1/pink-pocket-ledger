@@ -36,10 +36,12 @@ interface Props {
 }
 
 export function ExpenseForm({ open, onOpenChange, expense }: Props) {
-  const { addExpense, updateExpense } = useExpenses();
+  const { addExpense, updateExpense, customCategories, addCustomCategory } = useExpenses();
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(toISODate(new Date()));
   const [category, setCategory] = useState<Category>("Food");
+  const [customCategory, setCustomCategory] = useState(""); // For "Other Expense"
+  const [newCategoryName, setNewCategoryName] = useState(""); // For "+ Add Custom Category"
   const [description, setDescription] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Online / UPI");
   const [isSaving, setIsSaving] = useState(false);
@@ -49,6 +51,8 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
     setAmount(expense ? String(expense.amount) : "");
     setDate(expense?.date ?? toISODate(new Date()));
     setCategory(expense?.category as Category ?? "Food");
+    setCustomCategory(expense?.customCategory ?? "");
+    setNewCategoryName("");
     setDescription(expense?.description ?? "");
     setPaymentMethod(expense?.account === "cash" ? "Cash" : "Online / UPI");
   }, [open, expense]);
@@ -62,12 +66,29 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
       toast.error("Please enter a valid amount");
       return;
     }
+    
+    let finalCategory = category;
+    if (category === "+ Add Custom Category") {
+      if (!newCategoryName.trim()) {
+        toast.error("Please enter a custom category name");
+        return;
+      }
+      finalCategory = newCategoryName.trim();
+      await addCustomCategory(finalCategory);
+    }
+    
+    if (category === "Other Expense" && !customCategory.trim()) {
+      toast.error("Please enter an expense name for Other Expense");
+      return;
+    }
+
     const payload = {
       type: "expense" as const,
       amount: value,
       date,
-      category,
-      description: description.trim() || category,
+      category: finalCategory,
+      customCategory: finalCategory === "Other Expense" ? customCategory.trim() : null,
+      description: description.trim() || finalCategory,
       account: (paymentMethod === "Cash" ? "cash" : "online") as "cash" | "online",
     };
     
@@ -136,9 +157,47 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
                     {c.name}
                   </SelectItem>
                 ))}
+                {customCategories.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    <span className="mr-2">✨</span>
+                    {c}
+                  </SelectItem>
+                ))}
+                <SelectItem value="+ Add Custom Category">
+                  <span className="mr-2">➕</span>
+                  + Add Custom Category
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+          
+          {category === "+ Add Custom Category" && (
+            <div className="space-y-2">
+              <Label htmlFor="newCategoryName">Category Name</Label>
+              <Input
+                id="newCategoryName"
+                placeholder="e.g. Pet Care"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                className="h-12"
+                autoFocus
+              />
+            </div>
+          )}
+
+          {category === "Other Expense" && (
+            <div className="space-y-2">
+              <Label htmlFor="customCategory">Expense Name</Label>
+              <Input
+                id="customCategory"
+                placeholder="e.g. Gift for Friend"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                className="h-12"
+                autoFocus
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="note">Description / Note</Label>

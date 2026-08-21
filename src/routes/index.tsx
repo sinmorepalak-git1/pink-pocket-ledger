@@ -8,6 +8,7 @@ import { ExpenseForm } from "@/components/ExpenseForm";
 import { AddMoneyForm } from "@/components/AddMoneyForm";
 import { EditBalanceForm } from "@/components/EditBalanceForm";
 import { EmptyState, ExpenseList } from "@/components/ExpenseList";
+import { DashboardChart } from "@/components/DashboardChart";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -20,6 +21,9 @@ import {
   sum,
   toISODate,
   weekDays,
+  getHighestSpendingCategory,
+  getHighestSingleExpense,
+  categoryIcon,
 } from "@/lib/expenses";
 
 export const Route = createFileRoute("/")({
@@ -101,6 +105,18 @@ function Index() {
 
   const recent = expenses.slice(0, 30);
 
+  const monthExpenseOnly = monthExpenses.filter(e => e.type === "expense");
+  const highestCat = getHighestSpendingCategory(monthExpenseOnly);
+  const highestSingle = getHighestSingleExpense(monthExpenseOnly);
+  let cashTotal = 0;
+  let onlineTotal = 0;
+  monthExpenseOnly.forEach(e => {
+    if (e.account === "cash") cashTotal += e.amount;
+    else onlineTotal += e.amount;
+  });
+  const topPaymentMethod = onlineTotal > cashTotal ? "Online / UPI" : (cashTotal > 0 ? "Cash" : "None");
+  const topPaymentTotal = Math.max(onlineTotal, cashTotal);
+
   if (authLoading || isLoading) {
     return (
       <div className="flex h-64 items-center justify-center text-muted-foreground">
@@ -159,6 +175,36 @@ function Index() {
           <Download className="mr-2 size-5" /> Add Money
         </Button>
       </div>
+
+      <section className="space-y-3 pt-2">
+        <h2 className="text-base font-bold">Where is your money going?</h2>
+        <div className="card-soft p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Highest Category</p>
+              <p className="font-semibold mt-0.5 text-sm">
+                {highestCat ? `${categoryIcon(highestCat.category)} ${highestCat.category}` : "None"}
+              </p>
+              {highestCat && <p className="text-primary font-bold text-sm">{formatINR(highestCat.total)}</p>}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Payment Method</p>
+              <p className="font-semibold mt-0.5 text-sm">{topPaymentMethod}</p>
+              {topPaymentTotal > 0 && <p className="text-primary font-bold text-sm">{formatINR(topPaymentTotal)}</p>}
+            </div>
+            <div className="col-span-2">
+              <p className="text-xs text-muted-foreground">Highest Single Expense</p>
+              <p className="font-semibold mt-0.5 text-sm">{highestSingle ? highestSingle.category : "None"}</p>
+              {highestSingle && <p className="text-primary font-bold text-sm">{formatINR(highestSingle.amount)}</p>}
+            </div>
+          </div>
+          <Button variant="secondary" className="w-full mt-2 font-semibold" onClick={() => navigate({ to: "/summary" })}>
+            View Full Analysis
+          </Button>
+        </div>
+      </section>
+
+      <DashboardChart />
 
       <section>
         <div className="mb-3 flex items-center justify-between">

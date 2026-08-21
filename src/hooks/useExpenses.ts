@@ -7,7 +7,7 @@ import {
   query,
   onSnapshot,
   doc,
-  setDoc,
+  addDoc,
   deleteDoc,
   updateDoc,
   serverTimestamp,
@@ -73,8 +73,8 @@ export function useExpenses() {
         throw new Error("You must be logged in to add an expense.");
       }
 
-      const newRef = doc(collection(db, "users", currentUser.uid, "expenses"));
-      await setDoc(newRef, {
+      const expensesRef = collection(db, "users", currentUser.uid, "expenses");
+      await addDoc(expensesRef, {
         ...input,
         userId: currentUser.uid,
         createdAt: serverTimestamp(),

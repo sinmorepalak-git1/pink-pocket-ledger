@@ -52,7 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{ currentUser, loading, login, signup, logout, resetPassword }}
     >
-      {!loading && children}
+      {loading ? (
+        <div className="flex min-h-screen items-center justify-center bg-background px-4">
+          <p className="text-muted-foreground text-sm font-medium">Loading session...</p>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }

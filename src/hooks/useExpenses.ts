@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase";
 import {
   collection,
   query,
+  where,
   onSnapshot,
   doc,
   addDoc,
@@ -30,7 +31,8 @@ export function useExpenses() {
 
     setIsLoading(true);
     const q = query(
-      collection(db, "users", currentUser.uid, "expenses")
+      collection(db, "expenses"),
+      where("userId", "==", currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(
@@ -73,7 +75,7 @@ export function useExpenses() {
         throw new Error("You must be logged in to add an expense.");
       }
 
-      const expensesRef = collection(db, "users", currentUser.uid, "expenses");
+      const expensesRef = collection(db, "expenses");
       await addDoc(expensesRef, {
         ...input,
         userId: currentUser.uid,
@@ -89,7 +91,7 @@ export function useExpenses() {
         throw new Error("You must be logged in to update an expense.");
       }
       
-      const expenseRef = doc(db, "users", currentUser.uid, "expenses", id);
+      const expenseRef = doc(db, "expenses", id);
       await updateDoc(expenseRef, {
         ...input,
       });
@@ -103,7 +105,7 @@ export function useExpenses() {
         throw new Error("You must be logged in to delete an expense.");
       }
       
-      const expenseRef = doc(db, "users", currentUser.uid, "expenses", id);
+      const expenseRef = doc(db, "expenses", id);
       await deleteDoc(expenseRef);
     },
     [currentUser]

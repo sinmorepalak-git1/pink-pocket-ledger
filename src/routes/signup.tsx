@@ -19,8 +19,13 @@ function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   
-  const { signup } = useAuth();
+  const { signup, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect to dashboard if already logged in
+  if (currentUser) {
+    navigate({ to: "/", replace: true });
+  }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();

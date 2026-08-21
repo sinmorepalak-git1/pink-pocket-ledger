@@ -14,8 +14,13 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect to dashboard if already logged in
+  if (currentUser) {
+    navigate({ to: "/", replace: true });
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

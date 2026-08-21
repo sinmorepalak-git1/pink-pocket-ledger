@@ -7,23 +7,34 @@ export type Category =
   | "Health"
   | "Education"
   | "Groceries"
-  | "Other";
+  | "Other"
+  | "Income";
 
-export type PaymentMethod = "Cash" | "UPI" | "Debit Card" | "Credit Card" | "Other";
+export type AccountType = "cash" | "online";
+export type PaymentMethod = "Cash" | "Online / UPI";
 
-export interface Expense {
+export interface Wallet {
+  cashBalance: number;
+  onlineBalance: number;
+}
+
+export interface Transaction {
   id: string;
   userId: string;
+  type: "expense" | "income";
   amount: number;
   /** ISO date string: yyyy-MM-dd */
   date: string;
-  category: Category;
+  category: Category | string;
   description: string;
-  paymentMethod: PaymentMethod;
+  account: AccountType;
   createdAt: string;
 }
 
-export const CATEGORIES: { name: Category; icon: string }[] = [
+// Alias for backwards compatibility in components during refactoring
+export type Expense = Transaction;
+
+export const CATEGORIES: { name: Category | string; icon: string }[] = [
   { name: "Food", icon: "🍔" },
   { name: "Travel", icon: "🚕" },
   { name: "Shopping", icon: "🛍️" },
@@ -33,15 +44,10 @@ export const CATEGORIES: { name: Category; icon: string }[] = [
   { name: "Education", icon: "📚" },
   { name: "Groceries", icon: "🛒" },
   { name: "Other", icon: "✨" },
+  { name: "Income", icon: "💰" },
 ];
 
-export const PAYMENT_METHODS: PaymentMethod[] = [
-  "Cash",
-  "UPI",
-  "Debit Card",
-  "Credit Card",
-  "Other",
-];
+export const PAYMENT_METHODS: PaymentMethod[] = ["Cash", "Online / UPI"];
 
 export function categoryIcon(category: Category | string) {
   return CATEGORIES.find((c) => c.name === category)?.icon ?? "✨";
@@ -123,13 +129,27 @@ export function isInRange(iso: string, from: Date, to: Date) {
     t <= new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
 }
 
-export function sum(expenses: Expense[]) {
-  return expenses.reduce((t, e) => t + e.amount, 0);
+export function sum(transactions: Transaction[]) {
+  return transactions.reduce((t, e) => {
+    return e.type === "expense" ? t + e.amount : t;
+  }, 0);
 }
 
-export function groupByDate(expenses: Expense[]) {
-  const map = new Map<string, Expense[]>();
-  for (const e of expenses) {
+export function sumIncome(transactions: Transaction[]) {
+  return transactions.reduce((t, e) => {
+    return e.type === "income" ? t + e.amount : t;
+  }, 0);
+}
+
+export function netSum(transactions: Transaction[]) {
+  return transactions.reduce((t, e) => {
+    return e.type === "expense" ? t - e.amount : t + e.amount;
+  }, 0);
+}
+
+export function groupByDate(transactions: Transaction[]) {
+  const map = new Map<string, Transaction[]>();
+  for (const e of transactions) {
     const list = map.get(e.date) ?? [];
     list.push(e);
     map.set(e.date, list);
@@ -143,9 +163,13 @@ export function groupByDate(expenses: Expense[]) {
     }));
 }
 
-export function categoryTotals(expenses: Expense[]) {
+export function categoryTotals(transactions: Transaction[]) {
   const map = new Map<string, number>();
-  for (const e of expenses) map.set(e.category, (map.get(e.category) ?? 0) + e.amount);
+  for (const e of transactions) {
+    if (e.type === "expense") {
+      map.set(e.category, (map.get(e.category) ?? 0) + e.amount);
+    }
+  }
   return [...map.entries()]
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);

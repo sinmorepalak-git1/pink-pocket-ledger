@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ExpenseForm } from "@/components/ExpenseForm";
+import { AddMoneyForm } from "@/components/AddMoneyForm";
 import { useExpenses } from "@/hooks/useExpenses";
 import {
   categoryIcon,
@@ -25,7 +26,7 @@ import {
   formatINR,
   formatIndianDate,
   groupByDate,
-  type Expense,
+  type Transaction,
 } from "@/lib/expenses";
 import { toast } from "sonner";
 
@@ -35,9 +36,9 @@ export function EmptyState({ onAdd }: { onAdd: () => void }) {
       <div className="flex size-14 items-center justify-center rounded-full bg-secondary text-primary">
         <Wallet className="size-7" />
       </div>
-      <h3 className="text-lg font-semibold">No expenses yet</h3>
+      <h3 className="text-lg font-semibold">No transactions yet</h3>
       <p className="max-w-xs text-sm text-muted-foreground">
-        Start tracking your spending by adding your first expense.
+        Start tracking your spending by adding your first transaction.
       </p>
       <Button size="lg" className="mt-2 h-12" onClick={onAdd}>
         + Add Expense
@@ -46,22 +47,25 @@ export function EmptyState({ onAdd }: { onAdd: () => void }) {
   );
 }
 
-function ExpenseRow({ expense }: { expense: Expense }) {
+function ExpenseRow({ transaction }: { transaction: Transaction }) {
   const { deleteExpense } = useExpenses();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const isIncome = transaction.type === "income";
+  const displayAccount = transaction.account === "cash" ? "Cash" : "Online / UPI";
+
   async function handleDelete() {
     if (isDeleting) return;
     setIsDeleting(true);
     try {
-      await deleteExpense(expense.id);
-      toast.success("Expense deleted successfully.");
+      await deleteExpense(transaction.id);
+      toast.success("Transaction deleted successfully.");
       setConfirming(false);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to delete expense.");
+      toast.error(error instanceof Error ? error.message : "Failed to delete transaction.");
     } finally {
       setIsDeleting(false);
     }
@@ -70,20 +74,22 @@ function ExpenseRow({ expense }: { expense: Expense }) {
   return (
     <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-0">
       <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary text-xl">
-        {categoryIcon(expense.category)}
+        {categoryIcon(transaction.category)}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{expense.description}</p>
+        <p className="truncate font-medium">{transaction.description}</p>
         <p className="truncate text-xs text-muted-foreground">
-          {expense.category} · {expense.paymentMethod} · {formatIndianDate(expense.date)}
+          {transaction.category} · {displayAccount} · {formatIndianDate(transaction.date)}
         </p>
       </div>
-      <p className="shrink-0 font-semibold text-primary">{formatINR(expense.amount)}</p>
+      <p className={`shrink-0 font-semibold ${isIncome ? "text-green-600" : "text-primary"}`}>
+        {isIncome ? "+" : "-"} {formatINR(transaction.amount)}
+      </p>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="size-9 shrink-0">
             <MoreVertical className="size-4" />
-            <span className="sr-only">Expense actions</span>
+            <span className="sr-only">Transaction actions</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -99,14 +105,18 @@ function ExpenseRow({ expense }: { expense: Expense }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ExpenseForm open={editing} onOpenChange={setEditing} expense={expense} />
+      {isIncome ? (
+        <AddMoneyForm open={editing} onOpenChange={setEditing} income={transaction} />
+      ) : (
+        <ExpenseForm open={editing} onOpenChange={setEditing} expense={transaction} />
+      )}
 
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this transaction?</AlertDialogTitle>
             <AlertDialogDescription>
-              {expense.description} · {formatINR(expense.amount)} will be removed
+              {transaction.description} · {formatINR(transaction.amount)} will be removed
               permanently.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -128,7 +138,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
   );
 }
 
-export function ExpenseList({ expenses }: { expenses: Expense[] }) {
+export function ExpenseList({ expenses }: { expenses: Transaction[] }) {
   const groups = groupByDate(expenses);
 
   return (
@@ -138,11 +148,11 @@ export function ExpenseList({ expenses }: { expenses: Expense[] }) {
           <div className="flex items-center justify-between bg-secondary/70 px-4 py-2.5">
             <span className="text-sm font-semibold">{dateGroupLabel(group.date)}</span>
             <span className="text-sm font-semibold text-primary">
-              Total: {formatINR(group.total)}
+              Spent: {formatINR(group.total)}
             </span>
           </div>
           {group.items.map((e) => (
-            <ExpenseRow key={e.id} expense={e} />
+            <ExpenseRow key={e.id} transaction={e} />
           ))}
         </div>
       ))}

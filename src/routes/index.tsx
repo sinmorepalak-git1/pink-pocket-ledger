@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
-import { Plus, LogOut } from "lucide-react";
+import { Plus, LogOut, Download, Wallet, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ExpenseForm } from "@/components/ExpenseForm";
+import { AddMoneyForm } from "@/components/AddMoneyForm";
+import { EditBalanceForm } from "@/components/EditBalanceForm";
 import { EmptyState, ExpenseList } from "@/components/ExpenseList";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,9 +41,12 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-function SummaryCard({ label, value, note }: { label: string; value: string; note: string }) {
+function SummaryCard({ label, value, note, onClick }: { label: string; value: string; note: string; onClick?: () => void }) {
   return (
-    <div className="card-soft px-4 py-4">
+    <div 
+      className={`card-soft px-4 py-4 ${onClick ? 'cursor-pointer hover:bg-secondary/40 transition-colors' : ''}`}
+      onClick={onClick}
+    >
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-bold text-primary">{value}</p>
       <p className="mt-0.5 text-[11px] text-muted-foreground">{note}</p>
@@ -59,8 +64,10 @@ function Index() {
     }
   }, [currentUser, authLoading, navigate]);
 
-  const { expenses, isLoading } = useExpenses();
+  const { expenses, wallet, isLoading } = useExpenses();
   const [adding, setAdding] = useState(false);
+  const [addingIncome, setAddingIncome] = useState(false);
+  const [editingBalance, setEditingBalance] = useState(false);
   const today = new Date();
   const [selectedDate, setSelectedDate] = useState(toISODate(today));
   const [weekRef, setWeekRef] = useState(toISODate(today));
@@ -106,27 +113,57 @@ function Index() {
     return null; // Will redirect in useEffect
   }
 
+  const totalBalance = wallet.cashBalance + wallet.onlineBalance;
+
   return (
     <div className="space-y-6 pt-2">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-        <Button variant="ghost" size="sm" onClick={() => logout()} className="text-muted-foreground hover:text-foreground">
-          <LogOut className="mr-2 size-4" />
-          Logout
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setEditingBalance(true)} className="h-8">
+            <Settings2 className="mr-2 size-4" />
+            Balances
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => logout()} className="text-muted-foreground hover:text-foreground h-8">
+            <LogOut className="mr-2 size-4" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       <section className="grid grid-cols-3 gap-3">
-        <SummaryCard label="Today" value={formatINR(totals.day)} note="Total spent today" />
-        <SummaryCard label="This Week" value={formatINR(totals.week)} note="Total spent this week" />
-        <SummaryCard label="This Month" value={formatINR(totals.month)} note="Total spent this month" />
+        <SummaryCard 
+          label="Cash" 
+          value={formatINR(wallet.cashBalance)} 
+          note="Available cash"
+          onClick={() => setEditingBalance(true)}
+        />
+        <SummaryCard 
+          label="Online / UPI" 
+          value={formatINR(wallet.onlineBalance)} 
+          note="Bank balance" 
+          onClick={() => setEditingBalance(true)}
+        />
+        <SummaryCard 
+          label="Total Available" 
+          value={formatINR(totalBalance)} 
+          note="Total funds" 
+        />
       </section>
 
-      <Button size="lg" className="h-14 w-full text-base" onClick={() => setAdding(true)}>
-        <Plus className="size-5" /> Add Expense
-      </Button>
+      <div className="grid grid-cols-2 gap-3">
+        <Button size="lg" className="h-14 w-full text-base" onClick={() => setAdding(true)}>
+          <Plus className="mr-2 size-5" /> Add Expense
+        </Button>
+        <Button size="lg" className="h-14 w-full text-base bg-green-600 hover:bg-green-700" onClick={() => setAddingIncome(true)}>
+          <Download className="mr-2 size-5" /> Add Money
+        </Button>
+      </div>
 
       <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-bold">Spending Insights</h2>
+        </div>
         <Tabs defaultValue="day">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="day">Day</TabsTrigger>
@@ -143,7 +180,7 @@ function Index() {
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Total for this date</span>
+                <span className="text-muted-foreground">Spent on this date</span>
                 <span className="font-bold text-primary">{formatINR(sum(dayExpenses))}</span>
               </div>
             </div>
@@ -151,7 +188,7 @@ function Index() {
               <ExpenseList expenses={dayExpenses} />
             ) : (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                No expenses on this date.
+                No transactions on this date.
               </p>
             )}
           </TabsContent>
@@ -165,7 +202,7 @@ function Index() {
                 onChange={(e) => setWeekRef(e.target.value)}
               />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Weekly total</span>
+                <span className="text-muted-foreground">Spent this week</span>
                 <span className="font-bold text-primary">{formatINR(sum(weekExpenses))}</span>
               </div>
               <div className="divide-y divide-border/60">
@@ -197,7 +234,7 @@ function Index() {
                 onChange={(e) => setMonthRef(e.target.value)}
               />
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Monthly total</span>
+                <span className="text-muted-foreground">Spent this month</span>
                 <span className="font-bold text-primary">{formatINR(sum(monthExpenses))}</span>
               </div>
               {monthDayList.length ? (
@@ -217,12 +254,12 @@ function Index() {
                   })}
                 </div>
               ) : (
-                <p className="py-2 text-sm text-muted-foreground">No expenses this month.</p>
+                <p className="py-2 text-sm text-muted-foreground">No transactions this month.</p>
               )}
               {monthExpenses.length > 0 && (
                 <div className="space-y-2 border-t border-border/60 pt-3">
                   <p className="text-xs font-semibold text-muted-foreground">
-                    Category-wise breakdown
+                    Category-wise expense breakdown
                   </p>
                   {categoryTotals(monthExpenses).map((c) => (
                     <div key={c.category} className="flex items-center justify-between text-sm">
@@ -237,8 +274,8 @@ function Index() {
         </Tabs>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-bold">Recent Expenses</h2>
+      <section className="space-y-3 pb-8">
+        <h2 className="text-base font-bold">Recent Transactions</h2>
         {expenses.length ? (
           <ExpenseList expenses={recent} />
         ) : (
@@ -247,6 +284,8 @@ function Index() {
       </section>
 
       <ExpenseForm open={adding} onOpenChange={setAdding} />
+      <AddMoneyForm open={addingIncome} onOpenChange={setAddingIncome} />
+      <EditBalanceForm open={editingBalance} onOpenChange={setEditingBalance} />
     </div>
   );
 }

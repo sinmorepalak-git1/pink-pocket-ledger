@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,40 +17,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  CATEGORIES,
-  PAYMENT_METHODS,
-  toISODate,
-  type Category,
-  type Transaction,
-  type PaymentMethod,
-} from "@/lib/expenses";
+import { toISODate, type Transaction, type PaymentMethod, PAYMENT_METHODS } from "@/lib/expenses";
 import { useExpenses } from "@/hooks/useExpenses";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When provided, the form edits this expense instead of creating one. */
-  expense?: Transaction;
+  /** When provided, the form edits this income instead of creating one. */
+  income?: Transaction;
 }
 
-export function ExpenseForm({ open, onOpenChange, expense }: Props) {
+export function AddMoneyForm({ open, onOpenChange, income }: Props) {
   const { addExpense, updateExpense } = useExpenses();
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(toISODate(new Date()));
-  const [category, setCategory] = useState<Category>("Food");
-  const [description, setDescription] = useState("");
+  const [source, setSource] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Online / UPI");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setAmount(expense ? String(expense.amount) : "");
-    setDate(expense?.date ?? toISODate(new Date()));
-    setCategory(expense?.category as Category ?? "Food");
-    setDescription(expense?.description ?? "");
-    setPaymentMethod(expense?.account === "cash" ? "Cash" : "Online / UPI");
-  }, [open, expense]);
+    setAmount(income ? String(income.amount) : "");
+    setDate(income?.date ?? toISODate(new Date()));
+    setSource(income?.description ?? "");
+    setPaymentMethod(income?.account === "cash" ? "Cash" : "Online / UPI");
+  }, [open, income]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,27 +53,27 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
       return;
     }
     const payload = {
-      type: "expense" as const,
+      type: "income" as const,
       amount: value,
       date,
-      category,
-      description: description.trim() || category,
+      category: "Income",
+      description: source.trim() || "Added Money",
       account: (paymentMethod === "Cash" ? "cash" : "online") as "cash" | "online",
     };
     
     setIsSaving(true);
     try {
-      if (expense) {
-        await updateExpense(expense.id, payload);
-        toast.success("Expense updated successfully.");
+      if (income) {
+        await updateExpense(income.id, payload);
+        toast.success("Income updated successfully.");
       } else {
         await addExpense(payload);
-        toast.success("Expense saved successfully.");
+        toast.success("Income saved successfully.");
       }
       onOpenChange(false);
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : "Failed to save expense.");
+      toast.error(error instanceof Error ? error.message : "Failed to save income.");
     } finally {
       setIsSaving(false);
     }
@@ -93,13 +83,13 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{expense ? "Edit Expense" : "Add Expense"}</DialogTitle>
+          <DialogTitle>{income ? "Edit Income" : "Add Money"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount ₹</Label>
+            <Label htmlFor="income-amount">Amount ₹</Label>
             <Input
-              id="amount"
+              id="income-amount"
               type="number"
               inputMode="decimal"
               min="0"
@@ -107,15 +97,15 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
               placeholder="0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="h-14 text-2xl font-semibold"
+              className="h-14 text-2xl font-semibold text-green-600"
               autoFocus
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
+            <Label htmlFor="income-date">Date</Label>
             <Input
-              id="date"
+              id="income-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -124,35 +114,18 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Category</Label>
-            <Select value={category} onValueChange={(v) => setCategory(v as Category)}>
-              <SelectTrigger className="h-12 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c.name} value={c.name}>
-                    <span className="mr-2">{c.icon}</span>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="note">Description / Note</Label>
-            <Textarea
-              id="note"
-              rows={2}
-              placeholder="e.g. Lunch with friends"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+            <Label htmlFor="income-source">Source / Note</Label>
+            <Input
+              id="income-source"
+              placeholder="e.g. Salary, Returned money"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              className="h-12"
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Payment Method</Label>
+            <Label>Account</Label>
             <Select
               value={paymentMethod}
               onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
@@ -171,14 +144,14 @@ export function ExpenseForm({ open, onOpenChange, expense }: Props) {
           </div>
 
           <DialogFooter>
-            <Button type="submit" size="lg" className="h-14 w-full text-base" disabled={isSaving}>
+            <Button type="submit" size="lg" className="h-14 w-full text-base bg-green-600 hover:bg-green-700" disabled={isSaving}>
               {isSaving
-                ? expense
+                ? income
                   ? "Updating..."
                   : "Saving..."
-                : expense
-                  ? "Update Expense"
-                  : "Save Expense"}
+                : income
+                  ? "Update Income"
+                  : "Add Money"}
             </Button>
           </DialogFooter>
         </form>
